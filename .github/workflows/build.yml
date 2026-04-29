@@ -13,11 +13,13 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: |
+            8
+            17
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -25,7 +27,7 @@ jobs:
       - name: Build with Gradle
         run: |
           chmod +x gradlew
-          ./gradlew build --stacktrace
+          ./gradlew build --stacktrace --no-daemon
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
