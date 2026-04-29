@@ -6,7 +6,7 @@ plugins {
 
 archivesBaseName = "${project.mod_id}-mc${project.minecraft_version}-${project.mod_version}"
 
-// Set the toolchain version to decouple the Java we run Gradle with from the Java used to compile and run the mod.
+// Gradle itself runs on Java 17, but the mod is compiled for Java 8.
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(8))
@@ -15,9 +15,6 @@ java {
 
 minecraft {
     mcVersion.set(minecraft_version)
-    forgeVersion.set(forge_version)
-    mcpMappingChannel.set(mappings_channel)
-    mcpMappingVersion.set(mappings_version)
     username.set("Developer")
 
     injectedTags.put("MOD_VERSION", mod_version)
