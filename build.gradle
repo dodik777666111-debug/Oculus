@@ -6,10 +6,64 @@ plugins {
 
 archivesBaseName = "${project.mod_id}-mc${project.minecraft_version}-${project.mod_version}"
 
-// Gradle itself runs on Java 17, but the mod is compiled for Java 8.
+// Gradle itself runs on Java 17, but the compiled classes target Java 8.
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(8))
+    }
+}
+
+/*
+ * IMPORTANT:
+ * This repository still contains a lot of Iris/Oculus code from newer Minecraft versions.
+ * Minecraft 1.12.2 does not have classes like:
+ * - com.mojang.blaze3d.vertex.PoseStack
+ * - net.minecraft.client.renderer.RenderType
+ * - net.minecraft.client.renderer.LevelRenderer
+ * - com.mojang.math.Matrix4f
+ *
+ * To stop the current 700+ compile errors, we only compile the parts that are not directly
+ * tied to the newer Minecraft rendering API. This is a temporary build-unblock step.
+ */
+sourceSets {
+    main {
+        java {
+            setSrcDirs(["src/main/java"])
+
+            include "de/odysseus/**"
+            include "it/unimi/**"
+            include "kroppeb/**"
+
+            include "net/coderbot/iris/LaunchWarn.java"
+            include "net/coderbot/iris/IrisLogging.java"
+
+            include "net/coderbot/iris/vendored/joml/**"
+
+            include "net/irisshaders/iris/api/v0/**"
+
+            exclude "net/coderbot/batchedentityrendering/**"
+            exclude "net/coderbot/iris/compat/sodium/**"
+            exclude "net/coderbot/iris/mixin/**"
+            exclude "net/coderbot/iris/gl/uniform/**"
+            exclude "net/coderbot/iris/JomlConversions.java"
+            exclude "nanolive/compat/NativeImage.java"
+        }
+
+        resources {
+            setSrcDirs(["src/main/resources"])
+
+            // These mixin configs reference classes that are not ported to 1.12.2 yet.
+            exclude "oculus-batched-entity-rendering.mixins.json"
+            exclude "mixins.oculus.compat.sodium.json"
+            exclude "mixins.oculus.bettermipmaps.json"
+            exclude "mixins.oculus.compat.json"
+            exclude "mixins.oculus.fantastic.json"
+            exclude "mixins.oculus.fixes.maxfpscrash.json"
+            exclude "mixins.oculus.integrationtest.json"
+            exclude "mixins.oculus.optimized-stitching.json"
+            exclude "mixins.oculus.vertexformat.json"
+            exclude "mixins.oculus.json"
+        }
     }
 }
 
@@ -30,18 +84,22 @@ tasks.deobfuscateMergedJarToSrg.configure {
 repositories {
     mavenLocal()
     mavenCentral()
+
     maven {
         name = "GTNH Maven"
         url = uri("https://nexus.gtnewhorizons.com/repository/public/")
     }
+
     maven {
         name = "CleanroomMC Maven"
         url = uri("https://maven.cleanroommc.com")
     }
+
     maven {
         name = "SpongePowered Maven"
         url = uri("https://repo.spongepowered.org/maven")
     }
+
     maven {
         name = "CurseForge"
         url = uri("https://cursemaven.com")
@@ -49,6 +107,7 @@ repositories {
             includeGroup "curse.maven"
         }
     }
+
     maven {
         name = "Modrinth"
         url = uri("https://api.modrinth.com/maven")
@@ -60,6 +119,7 @@ repositories {
 
 dependencies {
     def mixinBooter = modUtils.enableMixins("zone.rong:mixinbooter:8.9", "oculus-mixins-refmap.json")
+
     api(mixinBooter) {
         transitive = false
     }
@@ -67,19 +127,20 @@ dependencies {
     annotationProcessor "org.ow2.asm:asm-debug-all:5.2"
     annotationProcessor "com.google.guava:guava:32.1.2-jre"
     annotationProcessor "com.google.code.gson:gson:2.8.9"
+
     annotationProcessor(mixinBooter) {
         transitive = false
     }
 
-    // modCompileOnly "maven.modrinth:rubidium:0.2.13"
-
     implementation(shadow(project(path: ":glsl-relocated", configuration: "bundledJar"))) {
         transitive = false
     }
+
     implementation(shadow("org.anarres:jcpp:1.4.14")) {
         transitive = false
     }
-    shadow("org.slf4j:slf4j-api:1.7.12") // for jcpp
+
+    shadow("org.slf4j:slf4j-api:1.7.12")
 
     implementation fileTree(dir: "libs", include: ["*.jar"])
 }
@@ -94,6 +155,17 @@ processResources {
                 "minecraft_version": project.minecraft_version
         )
     }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+
+    /*
+     * Gradle sometimes crashes with a constants collector NPE when Java 8 compilation
+     * produces many broken source errors. Disabling incremental compilation makes the
+     * failure cleaner and avoids that extra Gradle-side crash.
+     */
+    options.incremental = false
 }
 
 shadowJar {
